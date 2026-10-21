@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Controle de Estoque</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --line:#d9dde3; --fg:#1d2330; --muted:#5f6878;
+  --accent:#24508f; --accent-fg:#ffffff; --tag:#ffe27a; --tag-fg:#3a2f00;
+  --ok:#1f7a4d; --warn:#9a6200; --bad:#b3261e; --ok-bg:#e3f3ea; --warn-bg:#fdf0d8; --bad-bg:#fbe4e2;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#14171d; --surface:#1c2129; --line:#2e3542; --fg:#e7eaf0; --muted:#9aa3b2;
+  --accent:#7aa6e6; --accent-fg:#0d1626; --tag:#e9c94f; --tag-fg:#2b2300;
+  --ok:#6fd3a0; --warn:#f0b75a; --bad:#ff8a80; --ok-bg:#16301f; --warn-bg:#33270f; --bad-bg:#3a1a18; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--sans);font-size:15px;line-height:1.5;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:860px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:1.5rem;margin:0;font-weight:700;text-wrap:balance}
+.who{display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{font:inherit;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.login{max-width:380px;margin:8vh auto 0;width:100%}
+h2{font-size:1.05rem;margin:0}
+.hint{color:var(--muted);font-size:.88rem;margin:0}
+form.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+form.stack{display:flex;flex-direction:column;gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;font-weight:600;color:var(--muted)}
+input{font:inherit;font-size:1rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-width:0;width:100%}
+input.code{font-family:var(--mono);text-transform:uppercase}
+.btn{font:inherit;font-weight:600;border-radius:6px;padding:10px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+.btn.sm{padding:5px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:default}
+.msg{margin:0;font-size:.9rem;padding:8px 10px;border-radius:6px}
+.msg.ok{background:var(--ok-bg);color:var(--ok)} .msg.err{background:var(--bad-bg);color:var(--bad)}
+.tag{font-family:var(--mono);font-weight:600;background:var(--tag);color:var(--tag-fg);padding:2px 7px;border-radius:3px;font-size:.85rem;white-space:nowrap}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:.75rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right}
+.qty{font-weight:700;font-size:1.05rem}
+.pill{font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.empty{color:var(--muted);text-align:center;padding:24px 8px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.edit-row td{background:var(--bg)}
+.inline{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.inline label{flex:1 1 140px}
+.found{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:.92rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Controle de Estoque</h1>
+    <div class="who" id="who" hidden>
+      <span id="role"></span>
+      <button class="btn ghost sm" id="sair" type="button">Sair</button>
+    </div>
+  </header>
+
+  <!-- LOGIN -->
+  <section id="view-login" hidden>
+    <div class="panel login">
+      <h2>Entrar</h2>
+      <form class="stack" id="form-login" novalidate>
+        <label for="l-usuario">Usuário
+          <input id="l-usuario" autocomplete="username" autocapitalize="none" placeholder="admin ou geral" required>
+        </label>
+        <label for="l-senha">Senha
+          <input id="l-senha" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn" type="submit" id="l-btn">Entrar</button>
+      </form>
+      <p class="msg" id="l-msg" hidden></p>
+    </div>
+  </section>
+
+  <p class="hint" id="carregando">Carregando…</p>
+
+  <div id="app" hidden>
+    <nav role="tablist">
+      <button role="tab" id="tab-consulta" aria-selected="true" data-view="consulta">Consultar estoque</button>
+      <button role="tab" id="tab-venda" aria-selected="false" data-view="venda">Registrar saída</button>
+      <button role="tab" id="tab-admin" aria-selected="false" data-view="admin" hidden>Administração</button>
+    </nav>
+
+    <!-- CONSULTA -->
+    <section id="view-consulta">
+      <div class="panel">
+        <label for="busca">Buscar por código ou nome
+          <input id="busca" type="search" placeholder="Ex.: ARR-5KG ou arroz" autocomplete="off">
+        </label>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Produto</th><th class="num">Em estoque</th><th>Situação</th></tr></thead>
+            <tbody id="lista-consulta"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VENDA / SAÍDA -->
+    <section id="view-venda" hidden>
+      <div class="panel">
+        <h2>Registrar saída</h2>
+        <p class="hint">Digite o código do produto e a quantidade que saiu. O estoque é atualizado na hora para todos.</p>
+        <form class="grid" id="form-venda" novalidate>
+          <label for="venda-codigo">Código do produto
+            <input id="venda-codigo" class="code" required autocomplete="off">
+          </label>
+          <label for="venda-qtd">Quantidade
+            <input id="venda-qtd" type="number" min="1" step="1" value="1" required inputmode="numeric">
+          </label>
+          <label for="venda-resp">Seu nome (opcional)
+            <input id="venda-resp" autocomplete="off" maxlength="60">
+          </label>
+          <button class="btn" type="submit" id="venda-btn">Confirmar</button>
+        </form>
+        <div class="found" id="venda-preview" hidden></div>
+        <p class="msg" id="venda-msg" hidden></p>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="view-admin" hidden>
+      <div class="panel">
+        <h2>Cadastrar produto</h2>
+        <p class="hint">Código: letras, números, hífen, ponto ou sublinhado (sem espaços). Ex.: ARR-5KG.</p>
+        <form class="grid" id="form-produto" novalidate>
+          <label for="p-codigo">Código
+            <input id="p-codigo" class="code" required autocomplete="off" maxlength="40">
+          </label>
+          <label for="p-nome">Nome do produto
+            <input id="p-nome" required autocomplete="off" maxlength="120">
+          </label>
+          <label for="p-qtd">Quantidade total
+            <input id="p-qtd" type="number" min="0" step="1" value="0" required inputmode="numeric">
+          </label>
+          <button class="btn" type="submit" id="p-btn">Cadastrar</button>
+        </form>
+        <p class="msg" id="p-msg" hidden></p>
+      </div>
+
+      <div class="panel">
+        <h2>Produtos cadastrados</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Produto</th><th class="num">Estoque</th><th class="num">Ações</th></tr></thead>
+            <tbody id="lista-admin"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Últimas saídas</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Código</th><th>Produto</th><th class="num">Qtd.</th><th>Quem registrou</th></tr></thead>
+            <tbody id="lista-vendas"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+// =====================================================================
+//  CONFIGURAÇÃO — cole aqui os dados do SEU projeto Firebase
+//  (Console do Firebase > Configurações do projeto > Seus apps > Web)
+// =====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyB6S41Uh4qcGaDFSYtnvv97YEM632Bv4ok",
+  authDomain: "casa-arcanjos-estoque.firebaseapp.com",
+  projectId: "casa-arcanjos-estoque",
+  storageBucket: "casa-arcanjos-estoque.firebasestorage.app",
+  messagingSenderId: "46154683448",
+  appId: "1:46154683448:web:85c5e4550234fd2c5b82cd"
+};
+
+// Os dois usuários. O e-mail deve ser IGUAL ao criado no Firebase
+// (Authentication) e ao que está no arquivo firestore.rules.
+const USUARIOS = {
+  admin: "admin@estoque.app",
+  geral: "geral@estoque.app"
+};
+// =====================================================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, limit,
+  runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $ = (id) => document.getElementById(id);
+const BAIXO = 5;
+const CODE_RE = /^[A-Z0-9][A-Z0-9_\-.]{0,39}$/;
+
+if (firebaseConfig.apiKey === "COLE_AQUI") {
+  $("carregando").textContent = "Configuração pendente: abra o arquivo index.html e cole os dados do seu projeto Firebase (veja o README).";
+  throw new Error("Firebase não configurado");
+}
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+let isAdmin = false, produtos = [], vendas = [], editando = null, confirmandoExcluir = null;
+let unsubs = [];
+
+const normCode = (s) => (s || "").trim().toUpperCase();
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+function el(tag, props = {}, kids = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "text") e.textContent = v;
+    else if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid) e.append(kid);
+  return e;
+}
+const vazio = (cols, text) => el("tr", {}, [el("td", {colspan: cols, class: "empty", text})]);
+const situacao = (q) => q <= 0 ? el("span", {class: "pill bad", text: "Esgotado"})
+  : q <= BAIXO ? el("span", {class: "pill warn", text: "Estoque baixo"})
+  : el("span", {class: "pill ok", text: "Disponível"});
+function showMsg(node, kind, text) { node.className = "msg " + kind; node.textContent = text; node.hidden = false; }
+function erroTexto(e) {
+  const c = e && e.code || "";
+  if (c === "permission-denied") return "Sem permissão para essa ação com este usuário.";
+  if (c === "unavailable") return "Sem conexão com a internet. Tente de novo.";
+  return (e && e.message) || "Não foi possível salvar. Tente de novo.";
+}
+
+// ---------- Login ----------
+$("form-login").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const u = $("l-usuario").value.trim().toLowerCase();
+  const senha = $("l-senha").value;
+  const email = USUARIOS[u] || u;
+  const msg = $("l-msg"); msg.hidden = true;
+  if (!u || !senha) return showMsg(msg, "err", "Informe usuário e senha.");
+  $("l-btn").disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+    $("l-senha").value = "";
+  } catch (e) {
+    const c = e.code || "";
+    showMsg(msg, "err",
+      c === "auth/too-many-requests" ? "Muitas tentativas. Aguarde alguns minutos e tente de novo."
+      : c === "auth/network-request-failed" ? "Sem conexão com a internet."
+      : "Usuário ou senha incorretos.");
+  } finally { $("l-btn").disabled = false; }
+});
+$("sair").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, (u) => {
+  unsubs.forEach(f => f()); unsubs = [];
+  $("carregando").hidden = true;
+  if (!u) {
+    $("app").hidden = true; $("who").hidden = true; $("view-login").hidden = false;
+    return;
+  }
+  isAdmin = (u.email || "").toLowerCase() === USUARIOS.admin.toLowerCase();
+  $("view-login").hidden = true; $("app").hidden = false; $("who").hidden = false;
+  $("role").textContent = isAdmin ? "Administrador" : "Usuário geral";
+  $("tab-admin").hidden = !isAdmin;
+  setView("consulta");
+  iniciarDados();
+});
+
+// ---------- Abas ----------
+function setView(v) {
+  document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
+  ["consulta", "venda", "admin"].forEach(n => $("view-" + n).hidden = n !== v);
+}
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------- Dados em tempo real ----------
+function iniciarDados() {
+  $("lista-consulta").replaceChildren(vazio(4, "Carregando produtos…"));
+  unsubs.push(onSnapshot(query(collection(db, "produtos"), orderBy("codigo")), (snap) => {
+    produtos = snap.docs.map(d => d.data()).map(p => ({codigo: p.codigo, nome: p.nome, quantidade: Number(p.quantidade) || 0}));
+    renderConsulta(); renderPreview(); renderAdmin();
+  }, (e) => $("lista-consulta").replaceChildren(vazio(4, erroTexto(e)))));
+  if (isAdmin) {
+    unsubs.push(onSnapshot(query(collection(db, "vendas"), orderBy("em", "desc"), limit(50)), (snap) => {
+      vendas = snap.docs.map(d => d.data()); renderVendas();
+    }, () => {}));
+  }
+}
+
+// ---------- Consulta ----------
+function renderConsulta() {
+  const q = $("busca").value.trim().toLowerCase();
+  const tb = $("lista-consulta"); tb.replaceChildren();
+  if (!produtos.length) return tb.append(vazio(4, "Nenhum produto cadastrado ainda."));
+  const lista = produtos.filter(p => !q || p.codigo.toLowerCase().includes(q) || (p.nome || "").toLowerCase().includes(q));
+  if (!lista.length) return tb.append(vazio(4, "Nenhum produto encontrado para essa busca."));
+  for (const p of lista) tb.append(el("tr", {}, [
+    el("td", {}, [el("span", {class: "tag", text: p.codigo})]),
+    el("td", {text: p.nome || "—"}),
+    el("td", {class: "num qty", text: String(p.quantidade)}),
+    el("td", {}, [situacao(p.quantidade)])
+  ]));
+}
+$("busca").addEventListener("input", renderConsulta);
+
+// ---------- Saída ----------
+try { $("venda-resp").value = localStorage.getItem("responsavel") || ""; } catch (_) {}
+function renderPreview() {
+  const c = normCode($("venda-codigo").value);
+  const box = $("venda-preview"); box.replaceChildren();
+  if (!c) { box.hidden = true; return; }
+  const p = produtos.find(x => x.codigo === c);
+  if (!p) box.append(el("span", {class: "hint", text: "Código não encontrado."}));
+  else box.append(el("span", {class: "tag", text: p.codigo}), el("strong", {text: p.nome || ""}),
+    el("span", {text: "Em estoque: " + p.quantidade}), situacao(p.quantidade));
+  box.hidden = false;
+}
+$("venda-codigo").addEventListener("input", renderPreview);
+
+$("form-venda").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const msg = $("venda-msg");
+  const codigo = normCode($("venda-codigo").value), q = Number($("venda-qtd").value);
+  const resp = $("venda-resp").value.trim();
+  try { localStorage.setItem("responsavel", resp); } catch (_) {}
+  if (!codigo) return showMsg(msg, "err", "Informe o código do produto.");
+  if (!Number.isInteger(q) || q < 1) return showMsg(msg, "err", "A quantidade deve ser um número inteiro maior que zero.");
+  if (!CODE_RE.test(codigo)) return showMsg(msg, "err", "Código " + codigo + " não encontrado.");
+  $("venda-btn").disabled = true;
+  try {
+    // Transação: se duas pessoas registrarem ao mesmo tempo, uma espera a outra.
+    const res = await runTransaction(db, async (tx) => {
+      const ref = doc(db, "produtos", codigo);
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return {erro: "Código " + codigo + " não encontrado."};
+      const p = snap.data();
+      const atual = Number(p.quantidade) || 0;
+      if (q > atual) return {erro: "Estoque insuficiente: há " + atual + " unidade(s) de " + p.nome + "."};
+      const novo = atual - q;
+      tx.update(ref, {quantidade: novo, atualizadoEm: serverTimestamp()});
+      tx.set(doc(collection(db, "vendas")), {
+        codigo, nome: p.nome, quantidade: q, em: serverTimestamp(),
+        usuario: isAdmin ? "admin" : "geral", responsavel: resp
+      });
+      return {nome: p.nome, novo};
+    });
+    if (res.erro) showMsg(msg, "err", res.erro);
+    else {
+      showMsg(msg, "ok", "Registrado: " + q + " × " + res.nome + ". Restam " + res.novo + " em estoque.");
+      $("venda-codigo").value = ""; $("venda-qtd").value = "1"; renderPreview(); $("venda-codigo").focus();
+    }
+  } catch (e) { showMsg(msg, "err", erroTexto(e)); }
+  finally { $("venda-btn").disabled = false; }
+});
+
+// ---------- Administração ----------
+$("form-produto").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const msg = $("p-msg");
+  const codigo = normCode($("p-codigo").value), nome = $("p-nome").value.trim(), q = Number($("p-qtd").value);
+  if (!CODE_RE.test(codigo)) return showMsg(msg, "err", "Código inválido. Use letras, números, hífen, ponto ou sublinhado, sem espaços.");
+  if (!nome) return showMsg(msg, "err", "Informe o nome do produto.");
+  if (!Number.isInteger(q) || q < 0) return showMsg(msg, "err", "A quantidade deve ser um número inteiro de 0 para cima.");
+  $("p-btn").disabled = true;
+  try {
+    const ref = doc(db, "produtos", codigo);
+    if ((await getDoc(ref)).exists()) return showMsg(msg, "err", "Já existe um produto com o código " + codigo + ". Use Editar na lista.");
+    await setDoc(ref, {codigo, nome, quantidade: q, criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp()});
+    showMsg(msg, "ok", "Produto " + codigo + " cadastrado com " + q + " unidade(s).");
+    $("p-codigo").value = ""; $("p-nome").value = ""; $("p-qtd").value = "0"; $("p-codigo").focus();
+  } catch (e) { showMsg(msg, "err", erroTexto(e)); }
+  finally { $("p-btn").disabled = false; }
+});
+
+function renderAdmin() {
+  if (!isAdmin) return;
+  const tb = $("lista-admin"); tb.replaceChildren();
+  if (!produtos.length) tb.append(vazio(4, "Nenhum produto ainda. Cadastre o primeiro acima."));
+  for (const p of produtos) {
+    const acoes = el("div", {class: "actions"});
+    if (confirmandoExcluir === p.codigo) {
+      acoes.append(
+        el("button", {class: "btn danger sm", type: "button", text: "Confirmar exclusão", onclick: async () => {
+          try { await deleteDoc(doc(db, "produtos", p.codigo)); confirmandoExcluir = null; renderAdmin(); }
+          catch (e) { showMsg($("p-msg"), "err", erroTexto(e)); }
+        }}),
+        el("button", {class: "btn ghost sm", type: "button", text: "Cancelar", onclick: () => { confirmandoExcluir = null; renderAdmin(); }}));
+    } else {
+      acoes.append(
+        el("button", {class: "btn ghost sm", type: "button", text: "Editar", onclick: () => { editando = p.codigo; confirmandoExcluir = null; renderAdmin(); }}),
+        el("button", {class: "btn danger sm", type: "button", text: "Excluir", onclick: () => { confirmandoExcluir = p.codigo; editando = null; renderAdmin(); }}));
+    }
+    tb.append(el("tr", {}, [
+      el("td", {}, [el("span", {class: "tag", text: p.codigo})]),
+      el("td", {text: p.nome || "—"}),
+      el("td", {class: "num qty", text: String(p.quantidade)}),
+      el("td", {class: "num"}, [acoes])
+    ]));
+    if (editando === p.codigo) {
+      const idN = "e-nome-" + p.codigo, idQ = "e-qtd-" + p.codigo;
+      const nomeIn = el("input", {id: idN, value: p.nome || "", maxlength: "120"});
+      const qtdIn = el("input", {id: idQ, type: "number", min: "0", step: "1", value: String(p.quantidade), inputmode: "numeric"});
+      const msg = el("p", {class: "msg", hidden: ""});
+      const salvar = el("button", {class: "btn sm", type: "button", text: "Salvar", onclick: async () => {
+        const q = Number(qtdIn.value);
+        if (!Number.isInteger(q) || q < 0) return showMsg(msg, "err", "A quantidade deve ser um número inteiro de 0 para cima.");
+        if (!nomeIn.value.trim()) return showMsg(msg, "err", "Informe o nome do produto.");
+        salvar.disabled = true;
+        try {
+          await updateDoc(doc(db, "produtos", p.codigo), {nome: nomeIn.value.trim(), quantidade: q, atualizadoEm: serverTimestamp()});
+          editando = null; renderAdmin();
+        } catch (e) { salvar.disabled = false; showMsg(msg, "err", erroTexto(e)); }
+      }});
+      tb.append(el("tr", {class: "edit-row"}, [el("td", {colspan: 4}, [
+        el("div", {class: "inline"}, [
+          el("label", {for: idN}, [document.createTextNode("Nome"), nomeIn]),
+          el("label", {for: idQ}, [document.createTextNode("Quantidade em estoque"), qtdIn]),
+          salvar,
+          el("button", {class: "btn ghost sm", type: "button", text: "Cancelar", onclick: () => { editando = null; renderAdmin(); }})
+        ]), msg])]));
+    }
+  }
+}
+
+function renderVendas() {
+  const tb = $("lista-vendas"); tb.replaceChildren();
+  if (!vendas.length) return tb.append(vazio(5, "Nenhuma saída registrada ainda."));
+  for (const v of vendas) {
+    const d = v.em && v.em.toDate ? v.em.toDate() : null;
+    const quem = [v.responsavel, v.usuario ? "(" + v.usuario + ")" : ""].filter(Boolean).join(" ");
+    tb.append(el("tr", {}, [
+      el("td", {text: d ? d.toLocaleString("pt-BR", {dateStyle: "short", timeStyle: "short"}) : "agora"}),
+      el("td", {}, [el("span", {class: "tag", text: v.codigo})]),
+      el("td", {text: v.nome || "—"}),
+      el("td", {class: "num", text: String(v.quantidade)}),
+      el("td", {text: quem || "—"})
+    ]));
+  }
+}
+</script>
+</body>
+</html>
